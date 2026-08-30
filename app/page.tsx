@@ -3,11 +3,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Camera, ChevronDown, Flower2, Heart, LockKeyhole, Upload, X, Trash2, Plus, Save } from 'lucide-react'
 
+
 const PASSCODE = '083124'
 const startDate = new Date('2024-08-31T20:45:00+08:00')
 const defaultLetter = `Somehow, you make time feel both fleeting and infinite. I look at us and feel so lucky for every ordinary Tuesday, every quiet drive, every laugh that arrives before the punchline.\n\nThank you for being my favorite place to return to. I would choose you in every version of this life, in every season, in every little beginning.`
 const defaultReasons = ['How you make a room feel like home.', 'Your laugh, especially when you try to hide it.', 'That you keep choosing tenderness.']
-const icons = { letter: '/icons/parchment-letter.png', music: '/icons/record-player.png', gallery: '/icons/camera.png', notes: '/icons/orchid.png' }
+const icons = {
+  letter: '/anniversary-website/icons/letter.png',
+  music: '/anniversary-website/icons/record-player.png',
+  gallery: '/anniversary-website/icons/camera.png',
+  notes: '/anniversary-website/icons/flower.png',
+}
 
 type Modal = 'music' | 'letter' | 'gallery' | 'notes' | null
 type Polaroid = { id: number; src: string; caption: string }
