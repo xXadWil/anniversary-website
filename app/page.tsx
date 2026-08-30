@@ -7,11 +7,12 @@ import { supabase } from './supabase'
 const PASSCODE = '083124'
 const startDate = new Date('2024-08-31T20:45:00+08:00')
 
+const BASE_PATH = process.env.NODE_ENV === 'production' ? '/anniversary-website' : ''
 const icons = {
-  letter: '/anniversary-website/icons/letter.png',
-  music: '/anniversary-website/icons/record-player.png',
-  gallery: '/anniversary-website/icons/camera.png',
-  notes: '/anniversary-website/icons/flower.png',
+  letter: `${BASE_PATH}/icons/letter.png`,
+  music: `${BASE_PATH}/icons/record-player.png`,
+  gallery: `${BASE_PATH}/icons/camera.png`,
+  notes: `${BASE_PATH}/icons/flower.png`,
 }
 
 type Modal = 'music' | 'letter' | 'gallery' | 'notes' | null
@@ -49,17 +50,30 @@ export default function Page() {
 
   useEffect(() => {
     async function loadData() {
-      const { data: content } = await supabase.from('site_content').select('*').eq('id', 1).single()
-      if (content) {
-        setSpotify(content.spotify || '')
-        setLetter(content.letter || '')
-        setReasons(content.reasons || [])
-        setBackground(content.background || null)
-      }
+      try {
+        const { data: content, error: contentError } = await supabase
+          .from('site_content')
+          .select('*')
+          .eq('id', 1)
+          .single()
 
-      const { data: photoData } = await supabase.from('photos').select('*').order('id', { ascending: true })
-      if (photoData) {
-        setPhotos(photoData)
+        if (content && !contentError) {
+          setSpotify(content.spotify || '')
+          setLetter(content.letter || '')
+          setReasons(content.reasons || [])
+          setBackground(content.background || null)
+        }
+
+        const { data: photoData, error: photoError } = await supabase
+          .from('photos')
+          .select('*')
+          .order('id', { ascending: true })
+
+        if (photoData && !photoError) {
+          setPhotos(photoData)
+        }
+      } catch (err) {
+        console.error('Error loading data from Supabase:', err)
       }
     }
 
@@ -92,12 +106,14 @@ export default function Page() {
     reader.readAsDataURL(file)
   }
 
-  function uploadBackground(e: React.ChangeEvent<HTMLInputElement>) {
+  async function uploadBackground(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     readFile(file, async value => {
       setBackground(value)
-      await supabase.from('site_content').upsert({ id: 1, background: value })
+      const { error } = await supabase.from('site_content').upsert({ id: 1, background: value })
+      if (error) alert('Error saving background: ' + error.message)
+      else alert('Background saved successfully!')
     })
   }
 
@@ -107,7 +123,8 @@ export default function Page() {
       readFile(file, async src => {
         const newPhoto: Polaroid = { id: Date.now() + Math.floor(Math.random() * 1000), src, caption: '' }
         setPhotos(curr => [...curr, newPhoto])
-        await supabase.from('photos').insert(newPhoto)
+        const { error } = await supabase.from('photos').insert(newPhoto)
+        if (error) alert('Error uploading photo: ' + error.message)
       })
     }
     e.target.value = ''
@@ -115,22 +132,28 @@ export default function Page() {
 
   async function saveSpotify() {
     setSpotify(spotifyDraft)
-    await supabase.from('site_content').upsert({ id: 1, spotify: spotifyDraft })
+    const { error } = await supabase.from('site_content').upsert({ id: 1, spotify: spotifyDraft })
+    if (error) alert('Error saving playlist: ' + error.message)
+    else alert('Playlist saved successfully!')
   }
 
   async function saveLetter() {
     setLetter(letterDraft)
-    await supabase.from('site_content').upsert({ id: 1, letter: letterDraft })
+    const { error } = await supabase.from('site_content').upsert({ id: 1, letter: letterDraft })
+    if (error) alert('Error saving letter: ' + error.message)
+    else alert('Letter saved successfully!')
   }
 
   async function updatePhoto(id: number, caption: string) {
     setPhotos(curr => curr.map(p => (p.id === id ? { ...p, caption } : p)))
-    await supabase.from('photos').update({ caption }).eq('id', id)
+    const { error } = await supabase.from('photos').update({ caption }).eq('id', id)
+    if (error) alert('Error updating caption: ' + error.message)
   }
 
   async function removePhoto(id: number) {
     setPhotos(curr => curr.filter(p => p.id !== id))
-    await supabase.from('photos').delete().eq('id', id)
+    const { error } = await supabase.from('photos').delete().eq('id', id)
+    if (error) alert('Error deleting photo: ' + error.message)
   }
 
   async function addReason() {
@@ -138,13 +161,15 @@ export default function Page() {
     const next = [...reasons, newReason.trim()]
     setReasons(next)
     setNewReason('')
-    await supabase.from('site_content').upsert({ id: 1, reasons: next })
+    const { error } = await supabase.from('site_content').upsert({ id: 1, reasons: next })
+    if (error) alert('Error adding note: ' + error.message)
   }
 
   async function removeReason(index: number) {
     const next = reasons.filter((_, i) => i !== index)
     setReasons(next)
-    await supabase.from('site_content').upsert({ id: 1, reasons: next })
+    const { error } = await supabase.from('site_content').upsert({ id: 1, reasons: next })
+    if (error) alert('Error deleting note: ' + error.message)
   }
 
   return (
@@ -216,10 +241,34 @@ export default function Page() {
           </section>
 
           <section id="portals" className="portal-grid">
-            <Portal image={icons.music} title="Songs about how I feel" subtitle="a playlist made for you" className="music-portal" onClick={() => { setSpotifyDraft(spotify); setModal('music') }} />
-            <Portal image={icons.letter} title="a love letter" subtitle="open when you need a reminder" className="letter-portal" onClick={() => { setLetterDraft(letter); setModal('letter') }} />
-            <Portal image={icons.gallery} title="little moments" subtitle={`${photos.length} saved ${photos.length === 1 ? 'memory' : 'memories'}`} className="camera-portal" onClick={() => setModal('gallery')} />
-            <Portal image={icons.notes} title="things i love" subtitle={`${reasons.length} little reasons`} className="flower-portal" onClick={() => setModal('notes')} />
+            <Portal
+              image={icons.music}
+              title="Songs about how I feel"
+              subtitle="a playlist made for you"
+              className="music-portal"
+              onClick={() => { setSpotifyDraft(spotify); setModal('music') }}
+            />
+            <Portal
+              image={icons.letter}
+              title="a love letter"
+              subtitle="open when you need a reminder"
+              className="letter-portal"
+              onClick={() => { setLetterDraft(letter); setModal('letter') }}
+            />
+            <Portal
+              image={icons.gallery}
+              title="little moments"
+              subtitle={`${photos.length} saved ${photos.length === 1 ? 'memory' : 'memories'}`}
+              className="camera-portal"
+              onClick={() => setModal('gallery')}
+            />
+            <Portal
+              image={icons.notes}
+              title="things i love"
+              subtitle={`${reasons.length} little reasons`}
+              className="flower-portal"
+              onClick={() => setModal('notes')}
+            />
           </section>
 
           <footer>
@@ -235,38 +284,77 @@ export default function Page() {
               <p className="eyebrow rose">press play</p>
               <h2>Our soundtrack</h2>
               <p className="modal-intro">Paste a Spotify playlist, album, or track link below.</p>
-              <input className="wide-input" value={spotifyDraft} onChange={e => setSpotifyDraft(e.target.value)} placeholder="https://open.spotify.com/playlist/..." />
-              <button className="save-button" onClick={saveSpotify}><Save size={15} /> Save playlist</button>
-              {spotifyEmbed(spotify) && <iframe className="spotify-frame" src={spotifyEmbed(spotify)} title="Spotify player" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" />}
+              <input
+                className="wide-input"
+                value={spotifyDraft}
+                onChange={e => setSpotifyDraft(e.target.value)}
+                placeholder="https://open.spotify.com/playlist/..."
+              />
+              <button className="save-button" onClick={saveSpotify}>
+                <Save size={15} /> Save playlist
+              </button>
+              {spotifyEmbed(spotify) && (
+                <iframe
+                  className="spotify-frame"
+                  src={spotifyEmbed(spotify)}
+                  title="Spotify player"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                />
+              )}
             </>
           )}
+
           {modal === 'letter' && (
             <>
               <p className="eyebrow rose">sealed with a kiss</p>
               <h2>My dearest love,</h2>
-              <textarea className="letter-editor" value={letterDraft} onChange={e => setLetterDraft(e.target.value)} aria-label="Edit love letter" />
-              <button className="save-button" onClick={saveLetter}><Save size={15} /> Save letter</button>
+              <textarea
+                className="letter-editor"
+                value={letterDraft}
+                onChange={e => setLetterDraft(e.target.value)}
+                aria-label="Edit love letter"
+              />
+              <button className="save-button" onClick={saveLetter}>
+                <Save size={15} /> Save letter
+              </button>
             </>
           )}
+
           {modal === 'gallery' && (
             <>
               <p className="eyebrow rose">the two of us</p>
               <h2>Little moments</h2>
-              <label className="upload-button"><Upload size={15} /> Add photos<input type="file" accept="image/*" multiple onChange={uploadPhotos} /></label>
+              <label className="upload-button">
+                <Upload size={15} /> Add photos
+                <input type="file" accept="image/*" multiple onChange={uploadPhotos} />
+              </label>
               <div className="polaroid-grid">
                 {photos.map(photo => (
                   <article className="polaroid" key={photo.id}>
                     <div className="polaroid-image">
                       <img src={photo.src} alt="Uploaded memory" />
-                      <button type="button" onClick={() => removePhoto(photo.id)} aria-label="Delete photo"><Trash2 size={14} /></button>
+                      <button type="button" onClick={() => removePhoto(photo.id)} aria-label="Delete photo">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                    <input value={photo.caption} onChange={e => updatePhoto(photo.id, e.target.value)} placeholder="write a little note..." aria-label="Photo caption" />
+                    <input
+                      value={photo.caption}
+                      onChange={e => updatePhoto(photo.id, e.target.value)}
+                      placeholder="write a little note..."
+                      aria-label="Photo caption"
+                    />
                   </article>
                 ))}
-                {!photos.length && <p className="empty-state"><Camera size={28} />Your saved moments will live here.</p>}
+                {!photos.length && (
+                  <p className="empty-state">
+                    <Camera size={28} />Your saved moments will live here.
+                  </p>
+                )}
               </div>
             </>
           )}
+
           {modal === 'notes' && (
             <>
               <div className="notes-flower"><Flower2 size={44} /></div>
@@ -276,13 +364,22 @@ export default function Page() {
                 {reasons.map((reason, index) => (
                   <li key={`${reason}-${index}`}>
                     {reason}
-                    <button type="button" onClick={() => removeReason(index)} aria-label={`Delete reason ${index + 1}`}><X size={14} /></button>
+                    <button type="button" onClick={() => removeReason(index)} aria-label={`Delete reason ${index + 1}`}>
+                      <X size={14} />
+                    </button>
                   </li>
                 ))}
               </ul>
               <div className="reason-add">
-                <input value={newReason} onChange={e => setNewReason(e.target.value)} onKeyDown={e => e.key === 'Enter' && addReason()} placeholder="add another reason..." />
-                <button type="button" onClick={addReason} aria-label="Add reason"><Plus size={17} /></button>
+                <input
+                  value={newReason}
+                  onChange={e => setNewReason(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addReason()}
+                  placeholder="add another reason..."
+                />
+                <button type="button" onClick={addReason} aria-label="Add reason">
+                  <Plus size={17} />
+                </button>
               </div>
             </>
           )}
