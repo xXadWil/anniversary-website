@@ -229,7 +229,7 @@ export default function Page() {
 
           <section className="hero">
             <p className="eyebrow rose">For the one who makes ordinary feel golden</p>
-            <h1>Happy <em>anniversary,</em><br />my love.</h1>
+            <h1>Happy <em>Anniversary,</em><br />my bug.</h1>
             <p className="hero-copy">Every second since we began has been worth keeping.</p>
             <div className="counter">
               <div><strong>{time.days.toLocaleString()}</strong><span>days</span></div><i>:</i>
@@ -244,14 +244,14 @@ export default function Page() {
             <Portal
               image={icons.music}
               title="Songs about how I feel"
-              subtitle="a playlist made for you"
+              subtitle="a playlist I made that reminds me of you"
               className="music-portal"
               onClick={() => { setSpotifyDraft(spotify); setModal('music') }}
             />
             <Portal
               image={icons.letter}
               title="a love letter"
-              subtitle="open when you need a reminder"
+              subtitle="open for a special message"
               className="letter-portal"
               onClick={() => { setLetterDraft(letter); setModal('letter') }}
             />
